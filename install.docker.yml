@@ -1,0 +1,101 @@
+# DOCKER INSTALLATION 
+
+# 1. Clean Up
+- name: Reset Kubernetes
+  become: yes
+  shell: "kubeadm reset --force"
+  ignore_errors: True
+
+- name: Remove existing Kubernetes packages
+  become: yes
+  apt:
+    state: absent
+    purge: yes
+    pkg:
+    - kubectl 
+    - kubelet 
+    - kubeadm 
+    - kubernetes-cni
+    - kube*
+  ignore_errors: yes
+
+- name: Cleaning up
+  become: yes
+  apt:
+    autoremove: yes
+  ignore_errors: yes
+
+- name: Remove previous Docker installations
+  become: yes
+  apt:
+    state: absent
+    pkg:
+    - docker 
+    - docker-engine 
+    - docker.io 
+    - containerd 
+    - runc
+  ignore_errors: yes
+
+- name:  Remove old scripts
+  file:
+   path: "{{ item }}"
+   state: absent
+  loop:
+  - joincommand.sh
+  - /usr/initializemaster.sh
+  - /usr/bin/initializemaster
+  - /usr/finalizeworker.sh
+  - /usr/bin/finalizeworker
+  ignore_errors: yes
+
+# 2. Update Repositories
+- name: Update Apt repositories
+  become: yes
+  apt: 
+    force_apt_get: yes
+    update_cache: yes 
+
+- name: Install dependencies (apt-transport-https ca-certificates curl gnupg-agent software-properties-common)
+  become: yes
+  apt:
+    force_apt_get: yes
+    pkg:
+    - apt-transport-https 
+    - ca-certificates 
+    - curl 
+    - gnupg-agent 
+    - software-properties-common
+
+- name: Fetch gpg keys
+  become: yes
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+
+
+- name: Find all bashrc files
+  become: yes
+  shell: lsb_release -cs
+  register: lsb_rel
+
+- name: Install repository
+  become: yes
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ lsb_rel.stdout }} stable
+    state: present
+
+- name: Update Apt repositories
+  become: yes
+  apt: 
+    update_cache: yes 
+
+# 3. Install Docker
+- name: Install Docker
+  become: yes
+  apt:
+    force_apt_get: yes
+    pkg:
+    - docker-ce 
+    - docker-ce-cli 
+    - containerd.io
+ 

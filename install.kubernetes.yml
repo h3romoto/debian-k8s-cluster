@@ -1,0 +1,73 @@
+# KUBERNETES INSTALLATION
+
+
+# 1. Install K8s
+- name: Fetch gpg keys
+  become: yes
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+- name: Create kubernetes.list
+  become: yes
+  file:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    state: touch
+
+
+- name: Add K8s repository
+  become: yes
+  lineinfile:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    line: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+
+- name: Update Repositories
+  become: yes
+  apt: 
+    update_cache: yes 
+
+- name: Install Kubernetes
+  become: yes
+  apt:
+    force_apt_get: yes
+    pkg:
+    - kubelet={{ kubernetes_v }}
+    - kubectl={{ kubernetes_v }}
+    - kubeadm={{ kubernetes_v }}
+
+- name: Disable swapoff
+  become: yes
+  shell: swapoff -a
+
+- name: Disable swapoff permanently
+  become: yes
+  replace:
+    path: /etc/fstab
+    regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+    replace: '#\1\2\3swap\4'
+    backup: yes
+
+
+# 2. Install Cluster Scripts
+- name: Adding K8s cluster scripts (initmaster_single.sh, finalizeworker.sh and install_loadbal.sh)
+  become: yes
+  copy:
+    src: "{{ item.source }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    mode: '0777'
+  loop:
+    - { source: "finalizeworker.sh", dest: "/usr/finalizeworker.sh"}
+    - { source: "initmaster_single.sh", dest: "/usr/initmaster_single.sh"}
+    - { source: "install_loadbal.sh", dest: "/usr/install_loadbal.sh"}
+
+- name: Installing K8s cluster scripts (initmaster_single, finalizeworker and install_loadbal links)
+  become: yes
+  file:
+    src: "{{ item.sources }}"
+    path: "{{ item.path }}"
+    state: link
+  loop:
+    - { sources: "/usr/finalizeworker.sh", path: "/usr/bin/finalizeworker" }
+    - { sources: "/usr/initmaster_single.sh", path: "/usr/bin/initmaster_single" }
+    - { sources: "/usr/install_loadbal.sh", path: "/usr/bin/install_loadbal" }
+
